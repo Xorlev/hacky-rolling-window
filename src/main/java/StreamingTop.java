@@ -19,10 +19,9 @@ public class StreamingTop {
             return o1.getCreatedAt().compareTo(o2.getCreatedAt());
         }
     });
-
     static Long windowSizeMs = 5000l;
-
     static ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
+
     public static void main(String[] args) throws Exception {
         File file = new File(args[0]);
         if (!file.exists()) {
@@ -36,13 +35,15 @@ public class StreamingTop {
 
         BufferedReader reader = new BufferedReader(new FileReader(file));
 
+        // Schedule snapshots every windowSizeMs ms
         service.scheduleAtFixedRate(new Runnable() {
             public void run() {
                 expireEntries(); //TODO: remove?
-                snapshotData(rollingWindow);
+                snapshotData();
             }
         }, windowSizeMs, windowSizeMs, TimeUnit.MILLISECONDS);
 
+        // Read data from stdin
         while(true) {
             if (reader.ready()) {
                 rollingWindow.add(new DataPoint(reader.readLine(), 1));
@@ -54,6 +55,9 @@ public class StreamingTop {
 
     }
 
+    /**
+     * Iterates through heap as long as there are expired entries to remove
+     */
     private static void expireEntries() {
         Date expirationThreshold = new Date();
         expirationThreshold.setTime(System.currentTimeMillis() - windowSizeMs);
@@ -63,8 +67,13 @@ public class StreamingTop {
         }
     }
 
-    private static void snapshotData(AbstractQueue<DataPoint> fiveSeconds) {Map<String, Integer> keys = new TreeMap<String, Integer>();
-        Iterator<DataPoint> it = fiveSeconds.iterator();
+    /**
+     * Creates a resolved view by iterating through the heap and aggregating values
+     */
+    private static void snapshotData() {
+        Map<String, Integer> keys = new TreeMap<String, Integer>();
+
+        Iterator<DataPoint> it = rollingWindow.iterator();
         while(it.hasNext()) {
             DataPoint point = it.next();
             if (!keys.containsKey(point.getKey())) {
@@ -74,12 +83,15 @@ public class StreamingTop {
             }
         }
 
+        // For a basic sorted list of keys -> counts
         SortedSet<Map.Entry<String, Integer>> set = new TreeSet<Map.Entry<String, Integer>>(new Comparator<Map.Entry<String, Integer>>() {
             public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
                 return o1.getValue().compareTo(o2.getValue());
             }
         });
         set.addAll(keys.entrySet());
+
+        // Key - count
         for (Map.Entry<String, Integer> entry : set) {
             String name = entry.getKey();
 
