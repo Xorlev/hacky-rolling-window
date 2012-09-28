@@ -20,7 +20,7 @@ public class StreamingTop {
         }
     });
 
-    static Long cadence = 5000l;
+    static Long windowSizeMs = 5000l;
 
     static ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
     public static void main(String[] args) throws Exception {
@@ -31,7 +31,7 @@ public class StreamingTop {
         }
 
         try {
-            cadence = Long.parseLong(args[1]);
+            windowSizeMs = Long.parseLong(args[1]);
         } catch(NumberFormatException e) { }
 
         BufferedReader reader = new BufferedReader(new FileReader(file));
@@ -41,7 +41,7 @@ public class StreamingTop {
                 expireEntries(); //TODO: remove?
                 snapshotData(rollingWindow);
             }
-        }, cadence, cadence, TimeUnit.MILLISECONDS);
+        }, windowSizeMs, windowSizeMs, TimeUnit.MILLISECONDS);
 
         while(true) {
             if (reader.ready()) {
@@ -56,7 +56,7 @@ public class StreamingTop {
 
     private static void expireEntries() {
         Date expirationThreshold = new Date();
-        expirationThreshold.setTime(System.currentTimeMillis() - cadence);
+        expirationThreshold.setTime(System.currentTimeMillis() - windowSizeMs);
 
         while (rollingWindow.peek() != null && rollingWindow.peek().getCreatedAt().before(expirationThreshold)) {
             System.out.println("Expiring entries...");
