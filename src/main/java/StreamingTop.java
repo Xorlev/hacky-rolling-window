@@ -59,7 +59,6 @@ public class StreamingTop {
         expirationThreshold.setTime(System.currentTimeMillis() - windowSizeMs);
 
         while (rollingWindow.peek() != null && rollingWindow.peek().getCreatedAt().before(expirationThreshold)) {
-            System.out.println("Expiring entries...");
             rollingWindow.poll();
         }
     }
